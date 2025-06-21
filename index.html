@@ -33,6 +33,12 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       cursor: grab;
       touch-action: manipulation;
+      transition: transform 0.1s, background-color 0.1s;
+    }
+    .dragging {
+      opacity: 0.6;
+      transform: scale(1.1);
+      background-color: #e0e0e0;
     }
     button {
       font-size: 1rem;
@@ -66,40 +72,51 @@
     let currentLetters = [];
     let correctCount = 0;
     let wrongCount = 0;
-    let waitingToContinue = false;
+    let draggedIndex = null;
+    let touchDraggedEl = null;
 
     function updateScore() {
       document.getElementById('score').textContent = `✅ ${correctCount} | ❌ ${wrongCount}`;
     }
 
     function shuffleAndDisplay() {
-      currentLetters = [];
       const shuffled = [...hebrewLetters].sort(() => 0.5 - Math.random());
       currentLetters = shuffled.slice(0, 3);
+      renderLetters();
+      document.getElementById('result').textContent = '';
+      document.getElementById('actionButton').textContent = 'Check Order';
+      document.getElementById('actionButton').onclick = checkOrder;
+    }
+
+    function renderLetters() {
       const container = document.getElementById('letters');
       container.innerHTML = '';
-
       currentLetters.forEach((letter, index) => {
         const div = document.createElement('div');
         div.textContent = letter;
         div.className = 'letter';
-        div.draggable = true;
         div.dataset.index = index;
+        div.draggable = true;
+
         div.addEventListener('dragstart', dragStart);
+        div.addEventListener('dragend', dragEnd);
         div.addEventListener('dragover', dragOver);
         div.addEventListener('drop', drop);
+
+        div.addEventListener('touchstart', touchStart, { passive: true });
+        div.addEventListener('touchend', touchEnd);
+
         container.appendChild(div);
       });
-      document.getElementById('result').textContent = '';
-      document.getElementById('actionButton').textContent = 'Check Order';
-      document.getElementById('actionButton').onclick = checkOrder;
-      waitingToContinue = false;
     }
-
-    let draggedIndex = null;
 
     function dragStart(e) {
       draggedIndex = +e.target.dataset.index;
+      e.target.classList.add('dragging');
+    }
+
+    function dragEnd(e) {
+      e.target.classList.remove('dragging');
     }
 
     function dragOver(e) {
@@ -111,30 +128,41 @@
       if (draggedIndex !== null && targetIndex !== draggedIndex) {
         [currentLetters[draggedIndex], currentLetters[targetIndex]] =
           [currentLetters[targetIndex], currentLetters[draggedIndex]];
-        shuffleAndDisplayFromCurrent();
+        renderLetters();
       }
     }
 
-    function shuffleAndDisplayFromCurrent() {
-      const container = document.getElementById('letters');
-      container.innerHTML = '';
-      currentLetters.forEach((letter, index) => {
-        const div = document.createElement('div');
-        div.textContent = letter;
-        div.className = 'letter';
-        div.draggable = true;
-        div.dataset.index = index;
-        div.addEventListener('dragstart', dragStart);
-        div.addEventListener('dragover', dragOver);
-        div.addEventListener('drop', drop);
-        container.appendChild(div);
-      });
+    function touchStart(e) {
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (el && el.classList.contains('letter')) {
+        touchDraggedEl = el;
+        draggedIndex = +el.dataset.index;
+        el.classList.add('dragging');
+      }
+    }
+
+    function touchEnd(e) {
+      if (!touchDraggedEl) return;
+      const touch = e.changedTouches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (target && target.classList.contains('letter')) {
+        const targetIndex = +target.dataset.index;
+        if (draggedIndex !== null && targetIndex !== draggedIndex) {
+          [currentLetters[draggedIndex], currentLetters[targetIndex]] =
+            [currentLetters[targetIndex], currentLetters[draggedIndex]];
+          renderLetters();
+        }
+      }
+      touchDraggedEl.classList.remove('dragging');
+      touchDraggedEl = null;
+      draggedIndex = null;
     }
 
     function checkOrder() {
       const result = document.getElementById('result');
       const correctOrder = [...currentLetters].sort((a, b) => {
-        return hebrewLetters.indexOf(b) - hebrewLetters.indexOf(a); // Reverse order for RTL
+        return hebrewLetters.indexOf(b) - hebrewLetters.indexOf(a);
       });
 
       if (JSON.stringify(currentLetters) === JSON.stringify(correctOrder)) {
@@ -144,7 +172,7 @@
         updateScore();
         setTimeout(shuffleAndDisplay, 1000);
       } else {
-        result.innerHTML = '❌ Incorrect. Correct order: ' + correctOrder.join(', ');
+        result.innerHTML = '❌ Incorrect. Correct order: ' + correctOrder.reverse().join(', ');
         result.style.color = 'red';
         wrongCount++;
         updateScore();

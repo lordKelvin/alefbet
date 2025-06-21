@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hebrew Letter Sorter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 1rem;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    #arrow {
+      font-size: 1.2rem;
+      margin-bottom: 0.3rem;
+    }
+    #letters {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin: 0.5rem 0 1rem;
+    }
+    .letter {
+      font-size: 2rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      cursor: grab;
+      touch-action: manipulation;
+    }
+    button {
+      font-size: 1rem;
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    #score {
+      margin-top: 0.5rem;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sort the Hebrew Letters!</h1>
+  <div id="arrow">⬅️ Right-to-Left</div>
+  <div id="letters"></div>
+  <button id="actionButton" onclick="checkOrder()">Check Order</button>
+  <div id="result"></div>
+  <div id="score">✅ 0 | ❌ 0</div>
+
+  <script>
+    const hebrewLetters = [
+      'א','ב','ג','ד','ה','ו','ז','ח','ט','י','כ','ל','מ','נ','ס','ע','פ','צ','ק','ר','ש','ת'
+    ];
+
+    let currentLetters = [];
+    let correctCount = 0;
+    let wrongCount = 0;
+    let waitingToContinue = false;
+
+    function updateScore() {
+      document.getElementById('score').textContent = `✅ ${correctCount} | ❌ ${wrongCount}`;
+    }
+
+    function shuffleAndDisplay() {
+      currentLetters = [];
+      const shuffled = [...hebrewLetters].sort(() => 0.5 - Math.random());
+      currentLetters = shuffled.slice(0, 3);
+      const container = document.getElementById('letters');
+      container.innerHTML = '';
+
+      currentLetters.forEach((letter, index) => {
+        const div = document.createElement('div');
+        div.textContent = letter;
+        div.className = 'letter';
+        div.draggable = true;
+        div.dataset.index = index;
+        div.addEventListener('dragstart', dragStart);
+        div.addEventListener('dragover', dragOver);
+        div.addEventListener('drop', drop);
+        container.appendChild(div);
+      });
+      document.getElementById('result').textContent = '';
+      document.getElementById('actionButton').textContent = 'Check Order';
+      document.getElementById('actionButton').onclick = checkOrder;
+      waitingToContinue = false;
+    }
+
+    let draggedIndex = null;
+
+    function dragStart(e) {
+      draggedIndex = +e.target.dataset.index;
+    }
+
+    function dragOver(e) {
+      e.preventDefault();
+    }
+
+    function drop(e) {
+      const targetIndex = +e.target.dataset.index;
+      if (draggedIndex !== null && targetIndex !== draggedIndex) {
+        [currentLetters[draggedIndex], currentLetters[targetIndex]] =
+          [currentLetters[targetIndex], currentLetters[draggedIndex]];
+        shuffleAndDisplayFromCurrent();
+      }
+    }
+
+    function shuffleAndDisplayFromCurrent() {
+      const container = document.getElementById('letters');
+      container.innerHTML = '';
+      currentLetters.forEach((letter, index) => {
+        const div = document.createElement('div');
+        div.textContent = letter;
+        div.className = 'letter';
+        div.draggable = true;
+        div.dataset.index = index;
+        div.addEventListener('dragstart', dragStart);
+        div.addEventListener('dragover', dragOver);
+        div.addEventListener('drop', drop);
+        container.appendChild(div);
+      });
+    }
+
+    function checkOrder() {
+      const result = document.getElementById('result');
+      const correctOrder = [...currentLetters].sort((a, b) => {
+        return hebrewLetters.indexOf(b) - hebrewLetters.indexOf(a); // Reverse order for RTL
+      });
+
+      if (JSON.stringify(currentLetters) === JSON.stringify(correctOrder)) {
+        result.textContent = '✅ Correct order!';
+        result.style.color = 'green';
+        correctCount++;
+        updateScore();
+        setTimeout(shuffleAndDisplay, 1000);
+      } else {
+        result.innerHTML = '❌ Incorrect. Correct order: ' + correctOrder.join(', ');
+        result.style.color = 'red';
+        wrongCount++;
+        updateScore();
+        const btn = document.getElementById('actionButton');
+        btn.textContent = 'Continue';
+        btn.onclick = () => shuffleAndDisplay();
+      }
+    }
+
+    shuffleAndDisplay();
+  </script>
+</body>
+</html>

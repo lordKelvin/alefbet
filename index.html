@@ -11,19 +11,11 @@
       padding: 1rem;
       background-color: #f5f5f5;
     }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-    }
-    #arrow {
-      font-size: 1.2rem;
-      margin-bottom: 0.3rem;
-    }
     #letters {
       display: flex;
       justify-content: center;
       gap: 1rem;
-      margin: 0.5rem 0 1rem;
+      margin: 1rem 0;
     }
     .letter {
       font-size: 2rem;
@@ -33,26 +25,11 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       cursor: grab;
       touch-action: manipulation;
-      transition: transform 0.1s, background-color 0.1s;
+      transition: transform 0.3s;
     }
     .dragging {
-      opacity: 0.6;
+      opacity: 0.5;
       transform: scale(1.1);
-      background-color: #e0e0e0;
-    }
-    button {
-      font-size: 1rem;
-      padding: 0.5rem 1rem;
-      margin-top: 1rem;
-      cursor: pointer;
-    }
-    #result {
-      margin-top: 1rem;
-      font-weight: bold;
-    }
-    #score {
-      margin-top: 0.5rem;
-      font-size: 1rem;
     }
   </style>
 </head>
@@ -60,111 +37,93 @@
   <h1>Sort the Hebrew Letters!</h1>
   <div id="arrow">⬅️ Right-to-Left</div>
   <div id="letters"></div>
-  <button id="actionButton" onclick="checkOrder()">Check Order</button>
+  <button id="actionButton">Check Order</button>
   <div id="result"></div>
   <div id="score">✅ 0 | ❌ 0</div>
-
   <script>
-    const hebrewLetters = [
-      'א','ב','ג','ד','ה','ו','ז','ח','ט','י','כ','ל','מ','נ','ס','ע','פ','צ','ק','ר','ש','ת'
-    ];
-
+    const hebrewLetters = ['א','ב','ג','ד','ה','ו','ז','ח','ט','י','כ','ל','מ','נ','ס','ע','פ','צ','ק','ר','ש','ת'];
     let currentLetters = [];
     let correctCount = 0;
     let wrongCount = 0;
     let draggedIndex = null;
-    let touchDraggedEl = null;
 
     function updateScore() {
       document.getElementById('score').textContent = `✅ ${correctCount} | ❌ ${wrongCount}`;
     }
 
     function shuffleAndDisplay() {
-      const shuffled = [...hebrewLetters].sort(() => 0.5 - Math.random());
-      currentLetters = shuffled.slice(0, 3);
-      renderLetters();
+      currentLetters = [...hebrewLetters].sort(() => 0.5 - Math.random()).slice(0, 3);
       document.getElementById('result').textContent = '';
       document.getElementById('actionButton').textContent = 'Check Order';
       document.getElementById('actionButton').onclick = checkOrder;
+      renderLetters();
     }
 
     function renderLetters() {
       const container = document.getElementById('letters');
       container.innerHTML = '';
       currentLetters.forEach((letter, index) => {
-        const div = document.createElement('div');
-        div.textContent = letter;
-        div.className = 'letter';
-        div.dataset.index = index;
-        div.draggable = true;
-
-        div.addEventListener('dragstart', dragStart);
-        div.addEventListener('dragend', dragEnd);
-        div.addEventListener('dragover', dragOver);
-        div.addEventListener('drop', drop);
-
-        div.addEventListener('touchstart', touchStart, { passive: true });
-        div.addEventListener('touchend', touchEnd);
-
-        container.appendChild(div);
+        const el = document.createElement('div');
+        el.className = 'letter';
+        el.textContent = letter;
+        el.dataset.index = index;
+        el.draggable = true;
+        el.addEventListener('dragstart', (e) => {
+          draggedIndex = +e.target.dataset.index;
+          e.target.classList.add('dragging');
+        });
+        el.addEventListener('dragend', (e) => {
+          e.target.classList.remove('dragging');
+        });
+        el.addEventListener('dragover', (e) => e.preventDefault());
+        el.addEventListener('drop', (e) => {
+          const targetIndex = +e.target.dataset.index;
+          if (draggedIndex !== null && targetIndex !== draggedIndex) {
+            animateSwap(draggedIndex, targetIndex);
+          }
+        });
+        el.addEventListener('touchstart', (e) => {
+          const touch = e.touches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (target && target.classList.contains('letter')) {
+            draggedIndex = +target.dataset.index;
+            target.classList.add('dragging');
+          }
+        }, { passive: true });
+        el.addEventListener('touchend', (e) => {
+          const touch = e.changedTouches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (target && target.classList.contains('letter')) {
+            const targetIndex = +target.dataset.index;
+            if (draggedIndex !== null && targetIndex !== draggedIndex) {
+              animateSwap(draggedIndex, targetIndex);
+            }
+            target.classList.remove('dragging');
+          }
+          draggedIndex = null;
+        });
+        container.appendChild(el);
       });
     }
 
-    function dragStart(e) {
-      draggedIndex = +e.target.dataset.index;
-      e.target.classList.add('dragging');
-    }
+    function animateSwap(i, j) {
+      const container = document.getElementById('letters');
+      const elA = container.children[i];
+      const elB = container.children[j];
+      const dx = elB.offsetLeft - elA.offsetLeft;
 
-    function dragEnd(e) {
-      e.target.classList.remove('dragging');
-    }
+      elA.style.transform = `translateX(${dx}px)`;
+      elB.style.transform = `translateX(${-dx}px)`;
 
-    function dragOver(e) {
-      e.preventDefault();
-    }
-
-    function drop(e) {
-      const targetIndex = +e.target.dataset.index;
-      if (draggedIndex !== null && targetIndex !== draggedIndex) {
-        [currentLetters[draggedIndex], currentLetters[targetIndex]] =
-          [currentLetters[targetIndex], currentLetters[draggedIndex]];
+      setTimeout(() => {
+        [currentLetters[i], currentLetters[j]] = [currentLetters[j], currentLetters[i]];
         renderLetters();
-      }
-    }
-
-    function touchStart(e) {
-      const touch = e.touches[0];
-      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (el && el.classList.contains('letter')) {
-        touchDraggedEl = el;
-        draggedIndex = +el.dataset.index;
-        el.classList.add('dragging');
-      }
-    }
-
-    function touchEnd(e) {
-      if (!touchDraggedEl) return;
-      const touch = e.changedTouches[0];
-      const target = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (target && target.classList.contains('letter')) {
-        const targetIndex = +target.dataset.index;
-        if (draggedIndex !== null && targetIndex !== draggedIndex) {
-          [currentLetters[draggedIndex], currentLetters[targetIndex]] =
-            [currentLetters[targetIndex], currentLetters[draggedIndex]];
-          renderLetters();
-        }
-      }
-      touchDraggedEl.classList.remove('dragging');
-      touchDraggedEl = null;
-      draggedIndex = null;
+      }, 300);
     }
 
     function checkOrder() {
       const result = document.getElementById('result');
-      const correctOrder = [...currentLetters].sort((a, b) => {
-        return hebrewLetters.indexOf(b) - hebrewLetters.indexOf(a);
-      });
-
+      const correctOrder = [...currentLetters].sort((a, b) => hebrewLetters.indexOf(b) - hebrewLetters.indexOf(a));
       if (JSON.stringify(currentLetters) === JSON.stringify(correctOrder)) {
         result.textContent = '✅ Correct order!';
         result.style.color = 'green';
@@ -172,13 +131,13 @@
         updateScore();
         setTimeout(shuffleAndDisplay, 1000);
       } else {
-        result.innerHTML = '❌ Incorrect. Correct order: ' + correctOrder.reverse().join(', ');
+        result.textContent = '❌ Incorrect. Correct order: ' + correctOrder.reverse().join(', ');
         result.style.color = 'red';
         wrongCount++;
         updateScore();
         const btn = document.getElementById('actionButton');
         btn.textContent = 'Continue';
-        btn.onclick = () => shuffleAndDisplay();
+        btn.onclick = shuffleAndDisplay;
       }
     }
 
